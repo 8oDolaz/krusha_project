@@ -4,7 +4,7 @@ import RPi.GPIO as GPIO
 
 
 class Ultra_Sonic:
-	def __init__(self, output_pin: int, input_pin: int) -> None:
+	def __init__(self, output_pin, input_pin)
 		self.TRIG = output_pin
 		self.ECHO = input_pin
 
@@ -12,7 +12,7 @@ class Ultra_Sonic:
 		GPIO.setup(self.ECHO, GPIO.IN)
 
 
-	def measure_distance(self) -> float:
+	def measure_distance(self):
 		GPIO.output(self.TRIG, True)
 		time.sleep(0.00001)
 		GPIO.output(self.TRIG, False)
