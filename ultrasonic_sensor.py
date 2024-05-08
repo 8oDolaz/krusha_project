@@ -2,9 +2,13 @@ import time
 
 import RPi.GPIO as GPIO
 
-
+#Class for sensor HC-SR004
 class Ultra_Sonic:
-	def __init__(self, output_pin, input_pin)
+	#It has two parameters - pin numbers (integer)
+	#	TRIG - the output signal to our sensor
+	#	ECHO - the input signal from our sensor
+
+	def __init__(self, output_pin, input_pin):
 		self.TRIG = output_pin
 		self.ECHO = input_pin
 
@@ -13,18 +17,22 @@ class Ultra_Sonic:
 
 
 	def measure_distance(self):
+		# Calculate the distance. Without parameters 
+
+		#Creating a signal on our sensor
 		GPIO.output(self.TRIG, True)
 		time.sleep(0.00001)
 		GPIO.output(self.TRIG, False)
 
+		#Waiting for a response signal
 		while GPIO.input(self.ECHO) == 0:
 			pulse_start = time.time()
 
 		while GPIO.input(self.ECHO) == 1:
 			pulse_end = time.time()
 
+		#Calculate the distance 
 		pulse_duration = pulse_end - pulse_start
-
 		distance = pulse_duration * 17150
 
 		return distance
