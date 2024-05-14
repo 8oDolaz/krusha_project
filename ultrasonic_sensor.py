@@ -12,7 +12,10 @@ class Ultra_Sonic:
 	#	TRIG - the output signal to our sensor
 	#	ECHO - the input signal from our sensor
 
-	def __init__(self, output_pin, input_pin):
+	def __init__(self, x, y, theta, output_pin, input_pin):
+		self.x = x
+		self.y = y
+		self.theta = theta
 		self.TRIG = output_pin
 		self.ECHO = input_pin
 
@@ -46,4 +49,5 @@ class Ultra_Sonic:
 		global fov
 		delta_x = distance * math.tan(math.radians(fov / 2))
 		covariance = delta_x ** 2
+
 		return covariance
