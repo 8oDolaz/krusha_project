@@ -1,6 +1,10 @@
+import math
 import time
 
 import RPi.GPIO as GPIO
+
+fov = 15 #Field of view in degrees
+
 
 #Class for sensor HC-SR004
 class Ultra_Sonic:
@@ -36,3 +40,10 @@ class Ultra_Sonic:
 		distance = pulse_duration * 17150
 
 		return distance
+
+	def calculate_covariance(self, distance):
+		# Calculate the covariance.
+		global fov
+		delta_x = distance * math.tan(math.radians(fov / 2))
+		covariance = delta_x ** 2
+		return covariance
