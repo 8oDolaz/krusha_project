@@ -3,8 +3,8 @@ import time
 
 import RPi.GPIO as GPIO
 
-fov = 15 #Field of view in degrees
-
+FOV = 15  # Field of view in degrees (constant)
+MAX_RANGE = 200  # Max range for sensor in meters.
 
 #Class for sensor HC-SR004
 class Ultra_Sonic:
@@ -46,8 +46,8 @@ class Ultra_Sonic:
 
 	def calculate_covariance(self, distance):
 		# Calculate the covariance.
-		global fov
-		delta_x = distance * math.tan(math.radians(fov / 2))
+		global FOV
+		delta_x = distance * math.tan(math.radians(FOV / 2))
 		covariance = delta_x ** 2
 
 		return covariance
