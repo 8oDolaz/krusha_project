@@ -1,4 +1,4 @@
-from ultrasonic_sensor import Ultra_Sonic
+from sensors.ultrasonic_sensor import Ultra_Sonic
 
 import time
 

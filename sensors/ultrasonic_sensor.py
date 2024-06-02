@@ -13,9 +13,8 @@ class Ultra_Sonic:
 	#	ECHO - the input signal from our sensor
 
 	def __init__(self, x, y, theta, output_pin, input_pin):
-		self.x = x
-		self.y = y
-		self.theta = theta
+		self.x, self.y, self.theta = x, y, theta
+
 		self.TRIG = output_pin
 		self.ECHO = input_pin
 

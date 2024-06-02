@@ -4,7 +4,7 @@ import time
 
 import cv2 as cv
 import numpy as np
-from marker_detector import Marker_Detector
+from sensors.marker_detector import Marker_Detector
 
 
 marker_detector = Marker_Detector()
