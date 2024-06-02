@@ -14,24 +14,10 @@ class ImuSensor():
         self.velocity_y_prev = 0
         self.velocity_z_prev = 0
 
-
-    # Accelerometer simulation
-    def get_accel(self):
-        linear_velocity_axis = sim.getObjectVelocity(self.objectName)[0]
-        accel_x = (linear_velocity_axis[0] - self.velocity_x_prev) / dt
-        accel_y = (linear_velocity_axis[1] - self.velocity_y_prev) / dt
-        accel_z = (linear_velocity_axis[2] - self.velocity_z_prev) / dt
-        self.velocity_x_prev = linear_velocity_axis[0]
-        self.velocity_y_prev = linear_velocity_axis[1]
-        self.velocity_z_prev = linear_velocity_axis[2]
-        return accel_x, accel_y, accel_z
-
-
     # Gyroscope simulation
     def get_yaw_velocity(self):
         angular_velocity_axis = sim.getObjectVelocity(self.objectName)[1]
         return angular_velocity_axis[2]
-
 
     # Compas simulation
     def get_yaw(self):
@@ -47,7 +33,8 @@ class UltraSonic():
         self.objectName = objectName
 
     def measure_distance(self):
-        res, dist, point, obj, n = sim.checkProximitySensor(self.objectName, sim.handle_all)
+        res, dist, _, _, _ = sim.checkProximitySensor(self.objectName, sim.handle_all)
+        
         if res:
             return dist
 
@@ -57,9 +44,11 @@ class Encoder():
         self.objectName = objectName
 
     def get_velocity(self):
-        velocity_x, velocity_y, velocity_z = sim.getObjectVelocity(self.objectName)[0]
+        velocity_x, velocity_y, _ = sim.getObjectVelocity(self.objectName)[0]
+
         yaw = sim.getObjectOrientation(self.objectName)[2]
         velocity_local = velocity_x * math.cos(yaw) + velocity_y * math.sin(yaw)
+
         return velocity_local
 
 
@@ -98,7 +87,7 @@ def sysCall_init():
 
     # Drivers
     wheel_control = WheelControl(sim.getObject('./LeftBehindWheel'), sim.getObject('./RightBehindWheel'), sim.getObject('./LeftFrontWheel'), sim.getObject('./RightFrontWheel'))
-    # matplotlib.use('TkAgg')
+
     # UltraSonic Sensor
     encoder = Encoder(main_vehicle)
     leftSensor = UltraSonic(0.175, 0.1, np.deg2rad(90), sim.getObject('./LeftSensor'))
@@ -111,7 +100,7 @@ def ekf_slam(xEst, PEst, u, z):
     G, Fx = jacob_motion(xEst, u)
     xEst[0:STATE_SIZE] = motion_model(xEst[0:STATE_SIZE], u)
     PEst = G.T @ PEst @ G + Fx.T @ Cx @ Fx
-    initP = np.zeros((2, 2))
+    initP = np.eye(2) * 10**(-5)
 
     # Update
     for iz in range(len(z[:, 0])):  # for each observation
@@ -323,7 +312,7 @@ show_animation = True
 
 xEst = np.zeros((STATE_SIZE, 1))
 xTrue = np.zeros((STATE_SIZE, 1))
-PEst = np.zeros(STATE_SIZE)
+PEst = np.zeros((STATE_SIZE, STATE_SIZE))
 xDR = np.zeros((STATE_SIZE, 1))  # Dead reckoning
 
 # history
@@ -336,9 +325,9 @@ hxDR = xTrue
 
 # EKF state covariance
 Cx = np.diag([
-    0.01,
-    0.01,
-    np.deg2rad(30)
+    0.1,
+    0.1,
+    np.deg2rad(2)
 ]) ** 2
 
 #  Simulation parameter
@@ -347,7 +336,7 @@ Q_sim = np.diag([
     np.deg2rad(1)
 ]) ** 2
 
-R_sim = np.diag([0.05, np.deg2rad(1)]) ** 2
+R_sim = np.diag([0.5, np.deg2rad(7)]) ** 2
 
 while (t := sim.getSimulationTime()) < 150:
     wheel_control.move_forward()
