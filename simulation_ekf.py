@@ -1,10 +1,10 @@
 import math
-from math import cos, sin
 
+import filterpy.stats
 import numpy as np
-import matplotlib.pyplot as plt
-from filterpy.stats import plot_covariance_ellipse
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
+from math import cos, sin
+import matplotlib.pyplot as plt
 
 
 class ImuSensor():
@@ -86,7 +86,7 @@ def sysCall_init():
     imu_sensor = ImuSensor(main_vehicle)
 
     # Drivers
-    wheel_control = WheelControl(sim.getObject('./LeftBehindWheel'), sim.getObject('./RightBehindWheel'), sim.getObject('./LeftFrontWheel'), sim.getObject('./RightFrontWheel'))
+    wheel_control = WheelControl(sim.getObject('./LeftRearWheel'), sim.getObject('./RightRearWheel'), sim.getObject('./LeftFrontWheel'), sim.getObject('./RightFrontWheel'))
 
     # UltraSonic Sensor
     encoder = Encoder(main_vehicle)
@@ -95,12 +95,13 @@ def sysCall_init():
     frontSensor = UltraSonic(0.175, 0, np.deg2rad(0), sim.getObject('./FrontSensor'))
 
 
+
 def ekf_slam(xEst, PEst, u, z):
     # Predict
     G, Fx = jacob_motion(xEst, u)
     xEst[0:STATE_SIZE] = motion_model(xEst[0:STATE_SIZE], u)
     PEst = G.T @ PEst @ G + Fx.T @ Cx @ Fx
-    initP = np.eye(2) * 10**(-5)
+    initP = np.eye(2) * 0.0001
 
     # Update
     for iz in range(len(z[:, 0])):  # for each observation
@@ -300,11 +301,10 @@ sim.startSimulation()
 sysCall_init()
 
 points = []
-
-DT = 0.050  # time tick [s]
+DT = 0.05  # time tick [s]
 SIM_TIME = 50.0  # simulation time [s]
 MAX_RANGE = 20.0  # maximum observation range
-M_DIST_TH = 5  # Threshold of Mahalanobis distance for data association.
+M_DIST_TH = 10 # Threshold of Mahalanobis distance for data association.
 STATE_SIZE = 3  # State size [x,y,yaw]
 LM_SIZE = 2  # LM state size [x,y]
 
@@ -312,7 +312,7 @@ show_animation = True
 
 xEst = np.zeros((STATE_SIZE, 1))
 xTrue = np.zeros((STATE_SIZE, 1))
-PEst = np.zeros((STATE_SIZE, STATE_SIZE))
+PEst = np.zeros(STATE_SIZE)
 xDR = np.zeros((STATE_SIZE, 1))  # Dead reckoning
 
 # history
@@ -322,29 +322,27 @@ hxDR = xTrue
 hxEst = xEst
 hxTrue = xTrue
 hxDR = xTrue
-
 # EKF state covariance
 Cx = np.diag([
-    0.1,
-    0.1,
-    np.deg2rad(2)
+    0.01,
+    0.01,
+    np.deg2rad(0.01)
 ]) ** 2
 
 #  Simulation parameter
 Q_sim = np.diag([
     0.01,
-    np.deg2rad(1)
+    np.deg2rad(1.5)
 ]) ** 2
 
-R_sim = np.diag([0.5, np.deg2rad(7)]) ** 2
-
+R_sim = np.diag([0.3, np.deg2rad(10)]) ** 2
+wheel_control.move_forward()
 while (t := sim.getSimulationTime()) < 150:
-    wheel_control.move_forward()
 
     # GET MEASUREMENTS
-    get_coordinates_from_measure(leftSensor, xTrue[0, 0], xTrue[1, 0])
-    get_coordinates_from_measure(rightSensor, xTrue[0, 0], xTrue[1, 0])
-    get_coordinates_from_measure(frontSensor, xTrue[0, 0], xTrue[1, 0])
+    get_coordinates_from_measure(leftSensor, xEst[0, 0], xEst[1, 0])
+    get_coordinates_from_measure(rightSensor, xEst[0, 0], xEst[1, 0])
+    get_coordinates_from_measure(frontSensor, xEst[0, 0], xEst[1, 0])
     # GET SIGNAL
     u = np.array([[encoder.get_velocity(), imu_sensor.get_yaw_velocity()]]).T
     xTrue, z, xDR, ud = observation(xTrue, xDR, u)
@@ -375,10 +373,10 @@ while (t := sim.getSimulationTime()) < 150:
             plt.plot(xEst[lm_index],
                      xEst[lm_index + 1], "xg")
 
-            plot_covariance_ellipse(
+            filterpy.stats.plot_covariance_ellipse(
                 (xEst[lm_index], xEst[lm_index + 1]),
                 PEst[lm_index:lm_index + 2, lm_index:lm_index + 2],
-                std=6, facecolor='g', alpha=0.8
+                std=6, facecolor='b', alpha=0.8
             )
 
         plt.plot(hxTrue[0, :],
@@ -388,7 +386,7 @@ while (t := sim.getSimulationTime()) < 150:
         plt.plot(hxEst[0, :],
                  hxEst[1, :], "-r")
 
-        plot_covariance_ellipse(
+        filterpy.stats.plot_covariance_ellipse(
             (xEst[0, 0], xEst[1, 0]),
             PEst[0:2, 0:2],
             std=6, facecolor='g', alpha=0.8

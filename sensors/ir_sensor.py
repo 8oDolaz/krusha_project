@@ -1,95 +1,68 @@
-import numpy as np
-from scipy.optimize import curve_fit
-
-import Adafruit_MCP3008
+from turtle import distance
+import busio
+import digitalio
+import board
+import adafruit_mcp3xxx.mcp3008 as MCP
+from adafruit_mcp3xxx.analog_in import AnalogIn
 
 
 class MCP:
     '''
-    Analogue-to-digital convertor used to read data from Sharp IR sensor.
-    This class should be used for IR implementation.
-
-    For more indepth details look at
-    https://storage.googleapis.com/media.amperka.com/products/chip-mcp3008/media/mcp3008-datasheet.pdf
+    Analogut to digital transformer
+    MCP3008 for our robot
     '''
-    def __init__(self, clk, cs, miso, mosi, channels=8):
-        self.mcp = Adafruit_MCP3008.MCP3008(
-            clk=clk,
-            cs=cs,
-            miso=miso,
-            mosi=mosi,
-        )
+    def __init__(self):
+        spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
+        cs = digitalio.DigitalInOut(board.D5)
 
-        self.channels = channels
+        self.mcp = MCP.MCP3008(spi, cs)
 
 
 class Sharp_IR:
     def __init__(self, x, y, theta, mcp, mcp_channel,
-                 min=4, max=30, scale=2.5, const=1, coeff=28, power=1):
+                 min=4, max=15):
         '''
         x, y, theta : int, int, int
-            position relative to robot (?)
+            position relative to robot
 
         mcp : MCP (implemented above)
             ADC to read data
 
         mcp_channel : int
-            channel to ADC to read data from
+            channel 0..7 to ADC to read data from
 
         min, max : int, int
             mininal and maximal threshold of mesuarements
 
-        scale, const, coeff, power : float, float, float, int
-            coefficients for output curve of sharp IR
+        coeffs : list of floats
+            coeffs of a polynomial used to approximate analogue output to cm
         '''
         self.x, self.y, self.theta = x, y, theta
 
-        self.mcp = mcp
-        if not 0 < mcp_channel < mcp.channels - 1:
+        if not 0 <= mcp_channel <= 7:
             raise ValueError('Invalid mcp channel provided. Option are: 0..7')
-        self.channel = mcp_channel
+        channels_map = [
+            MCP.P0, MCP.P1, MCP.P2, MCP.P3,
+            MCP.P4, MCP.P5, MCP.P6, MCP.P7,
+        ]
+
+        self.mcp = AnalogIn(mcp, channels_map[mcp_channel])
 
         self.min, self.max = min, max
-        self.scale = scale
-        self.coeff = coeff
-        self.power = power
-        self.const = const
 
-
-    def colibrate_sensor(self, numsteps=10):
-        '''
-        Approximates coefficients for output curve. This could be found there (page 4):
-        https://global.sharp/products/device/lineup/data/pdf/datasheet/gp2y0a41sk_e.pdf
-
-        numsteps : int
-            amount of steps 
-        '''
-        distances = range(self.min, self.max + 1, (self.max - self.min) / numsteps)
-        voltages = []
-
-        output_curve = lambda x, m, a, b: m + a * (x ** b)
-
-        for _ in distances:
-            all_measurements = [
-                self.mcp.read_abc(self.channel) * 1.8 * self.scale
-                for _ in range(5)
-            ]
-
-            voltages.append(sum(all_measurements) / len(all_measurements))
-
-        popt, _ = curve_fit(
-            output_curve,
-            np.array(voltages), np.array(distances)
-        )
-
-        self.const = popt[0]
-        self.coeff = popt[1]
-        self.power = popt[2]
+        self.coeffs = [
+            -2.70585774e-10, 4.55301583e-08, -3.19212470e-06,
+            1.20701093e-04, -2.65057588e-03, 3.34831648e-02,
+            -2.15281742e-01, 3.20088948e-01, 3.29955408e+00
+        ]
 
 
     def measure_distance(self):
-        distance = self.const
-        distance += (self.mcp.read_adc(self.channel) * 1.8 * self.scale) ** self.power
+        raw_data = self.mcp.voltage
+
+        distance = 0
+        for i, coeff in enumerate(self.coeffs[::-1]):
+            distance += coeff * (raw_data ** i)
 
         if self.min <= distance <= self.max:
             return distance

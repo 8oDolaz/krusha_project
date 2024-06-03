@@ -12,8 +12,10 @@ class Ultra_Sonic:
 	#	TRIG - the output signal to our sensor
 	#	ECHO - the input signal from our sensor
 
-	def __init__(self, x, y, theta, output_pin, input_pin):
+	def __init__(self, x, y, theta, output_pin, input_pin, min=5, max=1000):
 		self.x, self.y, self.theta = x, y, theta
+
+		self.min, self.max = min, max
 
 		self.TRIG = output_pin
 		self.ECHO = input_pin
@@ -41,12 +43,6 @@ class Ultra_Sonic:
 		pulse_duration = pulse_end - pulse_start
 		distance = pulse_duration * 17150
 
-		return distance
-
-	def calculate_covariance(self, distance):
-		# Calculate the covariance.
-		global FOV
-		delta_x = distance * math.tan(math.radians(FOV / 2))
-		covariance = delta_x ** 2
-
-		return covariance
+		if not self.min <= distance <= self.max:
+			return distance
+		return -1
